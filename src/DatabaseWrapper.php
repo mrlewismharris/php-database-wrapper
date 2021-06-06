@@ -7,11 +7,8 @@
  * @author     LMH
  * @link       https://github.com/mrlewismharris/php-database-wrapper
  * @modified   2021-06-06
+ * @version    1.0
  */
-
-namespace DatabaseWrapper;
-
-use \PDO;
 
 class DatabaseWrapper
 {
@@ -38,8 +35,9 @@ class DatabaseWrapper
    * @param String $schema Name of the schema within the database
    * @param String $username Database username
    * @param String $password Database password
+   * @param Array $extras Any extra PDO settings you may wish to use
    */
-	function __construct($host = '', $port = '', $schema = '', $username = '', $password = '')
+	function __construct($host = '', $port = '', $schema = '', $username = '', $password = '', $extras = [])
 	{
 		//set database settings (you probably want to change these...)
 		$this->dbSettings = [
@@ -47,7 +45,9 @@ class DatabaseWrapper
 			'port' => '3306',
 			'schema' => 'test',
 			'username' => 'root',
-			'password' => ''
+			'password' => '',
+      //add extra PDO settings if necessary
+      'extra' => []
 		];
     
     //Or, get from a global variable - must be declared earlier in load order
@@ -60,7 +60,8 @@ class DatabaseWrapper
         'port' => $port,
         'schema' => $schema,
         'username' => $username,
-        'password' => $password
+        'password' => $password,
+        'extra' => $extras
       ];
     }
 	}
@@ -71,13 +72,21 @@ class DatabaseWrapper
    * Test the PDO connection to the database using the settings provided
    * @return boolean If the connection was successful
    */
-  public function testConnection() : boolean
+  public function testConnection()
   {
     //just return the connection from the instantiation of PDO
-    return new PDO("mysql:host={$this->dbSettings['host']};dbname={$this->dbSettings['schema']}", $this->dbSettings['username'], $this->dbSettings['password']);
+    try {
+      new PDO("mysql:host={$this->dbSettings['host']};dbname={$this->dbSettings['schema']}", $this->dbSettings['username'], $this->dbSettings['password'], $this->dbSettings['extra']);
+    } catch (PDOException $e) {
+      if (strlen($this->errors)>0) { $this->errors .= "Database connection error - Initial connection could not be made to the server"; }
+      return false;
+    }
+    return true;
   }
   
-  //clear all of the private variables for reuse
+  /**
+   * Clear all class properties
+   */
   public function clear()
   {
     $this->procedure = "";
@@ -85,7 +94,10 @@ class DatabaseWrapper
     $this->errors = "";
   }
 
-	//set the procedure you want to use
+	/**
+   * Set the procedure you want to use
+   * @param String $procedure Set the procedure with the pseudo-name/title, or a custom procedure if it isn't in the execute method switch statement
+   */
 	public function setProcedure(String $procedure)
 	{
 		//check procedure is actually set and not null or empty
@@ -100,8 +112,11 @@ class DatabaseWrapper
 		}
 	}
 
-	//set the arguments for the sql procedure
-	public function setArgs(Array $args)
+  /**
+   * Set the arguments for the stored procedure
+   * @param Array $args Set the procedure's arguments as an associative array (e.g. ["key" => "f82ba7sMc1"] will work in "SELECT `username` FROM users WHERE `key`=:key")
+   */
+	public function setArguments(Array $args)
 	{
 		//make sure arguments aren't empty
 		if ($args !== "" && isset($args))
@@ -117,8 +132,10 @@ class DatabaseWrapper
 		}
 	}
 
-	//after procedure and arguments, execute the sql procedure
-	//multiple return types, so no return type can be declared
+  /**
+   * After setting procedure and arguments, execute the sql procedure
+   * @return String/Boolean false if failed (then read the errors), or returns the results
+   */
 	public function execute()
 	{
 		//check the procedures and arguments are set
@@ -126,32 +143,31 @@ class DatabaseWrapper
 		{
 			//the variable procedure to set
 			$chosenProcedure = "";
+      
+      //find the corresponding procedure
 			switch ($this->procedure)
 			{
-				/* GET USERS */
+				// Example Procedures
+        // Simple SQL procedure
         case "getAllUsernames":
           $chosenProcedure = "SELECT username FROM `users`";
           break;
-        case "getUserByKey":
+        // Procedure with arguments/stored variables - needs to validate the array count
+        case "getUserByUsername":
 					if (count($this->args) == 1) {
             $chosenProcedure = "SELECT * FROM `users` WHERE `key`=:key";
           }
           break;
-        /* DEFAULT AND EXTRA PROCEDURES */
+        // Empty (this should never happen!)
 				case "":
 					$chosenProcedure = "";
-					if (strlen($this->errors) > 0)
-					{
-						$this->errors .= ", ";
-					}
+					if (strlen($this->errors) > 0) { $this->errors .= ", "; }
 					$this->errors .= "DatabaseWrapper procedure not set, empty";
 					break;
+        // Use a custom procedure
 				default:
-					$chosenProcedure = "";
-					if (strlen($this->errors) > 0)
-					{
-						$this->errors .= ", ";
-					}
+					$chosenProcedure = $this->procedure;
+					if (strlen($this->errors) > 0) { $this->errors .= ", "; }
 					$this->errors .= "DatabaseWrapper set procedure isn't in the switch statement";
 					break;
 			}
@@ -167,7 +183,7 @@ class DatabaseWrapper
 						$this->dbSettings['username'], 
 						$this->dbSettings['password']
 					);
-					//set PDO specific attributes for error mode and modes to return
+					//set PDO specific attributes for error mode and result mode
 					$this->conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 					//prepare PDO SQL connection with the SQL procedure
 					$stmt = $this->conn->prepare($chosenProcedure);
@@ -193,12 +209,18 @@ class DatabaseWrapper
 		}
 	}
   
-  // return PDO's lastInsertId
+  /**
+   * Return PDO's lastInsertId
+   * @return int False if failed, or return the object ID
+   */
   public function lastInsertId() {
     return $this->conn->lastInsertId();
   }
   
-  //simply get all errors
+  /**
+   * Getter for errors
+   * @return String A string of all the errors
+   */
   public function getErrors() {
     return $this->errors;
   }

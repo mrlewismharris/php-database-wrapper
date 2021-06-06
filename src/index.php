@@ -2,6 +2,6 @@
 
 include 'DatabaseWrapper.php';
 
-$db = new DatabaseWrapper\DatabaseWrapper();
+$db = new DatabaseWrapper();
 
 var_dump($db->testConnection());
