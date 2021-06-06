@@ -5,5 +5,6 @@ Also known as:
 * Connection Container/Wrapper
 * PDO Container/Wrapper
 
-## What is it?
+### What is it?
 A wrapped PDO class for easily accessing database procedures
+
