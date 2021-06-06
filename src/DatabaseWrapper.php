@@ -3,43 +3,90 @@
 /**
  * DatabaseWrapper for easily accessing a reusing PDO procedures
  *
- * @package    LoginSkeleton
+ * @package    DatabaseWrapper
  * @author     LMH
  * @link       https://github.com/mrlewismharris/php-database-wrapper
  * @modified   2021-06-06
  */
 
-namespace LoginSkeleton;
+namespace DatabaseWrapper;
 
 use \PDO;
 
 class DatabaseWrapper
 {
-	//get database connection settings from the settings file in app directory
+	//global vars
+  //database settings
 	private $dbSettings;
+  
+  //the procedure to use in the PDO connection
 	private $procedure;
+  
+  //the arguments to use with the PDO connection
 	private $args;
+  
+  //var for returning the errors
 	private $errors;
-  //need to make the PDO object accessible to the whole scope of this class
+  
+  //the PDO object
   private $conn;
 
-	function __construct()
+  /**
+   * DatabaseWrapper class constructor/instantiation
+   * @param String $host IP address of the database
+   * @param String $port Port of the database
+   * @param String $schema Name of the schema within the database
+   * @param String $username Database username
+   * @param String $password Database password
+   */
+	function __construct($host = '', $port = '', $schema = '', $username = '', $password = '')
 	{
-		//get the dbSettings from settings file
-		$this->dbSettings = $GLOBALS['settings']['settings']['pdo_settings'];
+		//set database settings (you probably want to change these...)
+		$this->dbSettings = [
+			'host' => 'localhost',
+			'port' => '3306',
+			'schema' => 'test',
+			'username' => 'root',
+			'password' => ''
+		];
+    
+    //Or, get from a global variable - must be declared earlier in load order
+    //$this->dbSettings = $GLOBALS['dbSettings'];
+    
+    //Or, if the construction args are set, use them - but all need to be set
+    if ($host !== '' && $port !== '' && $schema !== '' && $username !== '' && $password !== '') {
+      $this->dbSettings = [
+        'host' => $host,
+        'port' => $port,
+        'schema' => $schema,
+        'username' => $username,
+        'password' => $password
+      ];
+    }
 	}
 
 	function __destruct() {}
   
-  //clear all of the private variables
-  public function clear() {
+  /**
+   * Test the PDO connection to the database using the settings provided
+   * @return boolean If the connection was successful
+   */
+  public function testConnection() : boolean
+  {
+    //just return the connection from the instantiation of PDO
+    return new PDO("mysql:host={$this->dbSettings['host']};dbname={$this->dbSettings['schema']}", $this->dbSettings['username'], $this->dbSettings['password']);
+  }
+  
+  //clear all of the private variables for reuse
+  public function clear()
+  {
     $this->procedure = "";
     $this->args = "";
     $this->errors = "";
   }
 
-	//set the procedure to take place
-	public function setProcedure($procedure)
+	//set the procedure you want to use
+	public function setProcedure(String $procedure)
 	{
 		//check procedure is actually set and not null or empty
 		if ($procedure !== "" && isset($procedure)) {
@@ -54,7 +101,7 @@ class DatabaseWrapper
 	}
 
 	//set the arguments for the sql procedure
-	public function setArguments($args)
+	public function setArgs(Array $args)
 	{
 		//make sure arguments aren't empty
 		if ($args !== "" && isset($args))
@@ -70,7 +117,7 @@ class DatabaseWrapper
 		}
 	}
 
-	//after attaching the procedure and arguments, exec the sql procedure
+	//after procedure and arguments, execute the sql procedure
 	//multiple return types, so no return type can be declared
 	public function execute()
 	{
@@ -116,9 +163,9 @@ class DatabaseWrapper
 				{
 					//create conn PDO object, with database settings
 					$this->conn = new PDO(
-						"mysql:host={$this->dbSettings['host']};dbname={$this->dbSettings['db_name']}", 
-						$this->dbSettings['user_name'], 
-						$this->dbSettings['user_password']
+						"mysql:host={$this->dbSettings['host']};dbname={$this->dbSettings['schema']}", 
+						$this->dbSettings['username'], 
+						$this->dbSettings['password']
 					);
 					//set PDO specific attributes for error mode and modes to return
 					$this->conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
