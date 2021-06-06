@@ -1,6 +1,6 @@
 # php-database-wrapper
 
-Also known as:
+### Also known as:
 * Database Container
 * Connection Container/Wrapper
 * PDO Container/Wrapper
